@@ -16,9 +16,12 @@ rustflags = ["-C", "link-arg=-fuse-ld=lld"]
 rustflags = ["-C", "linker=clang", "-C", "link-arg=-fuse-ld=lld"]
 
 # On MacOS,
-# `brew install llvm` 
+# `brew install llvm`
 # and follow steps in `brew info llvm`
+# Note: Use `-fuse-ld=lld` (linker name) instead of `-fuse-ld=/full/path/to/ld64.lld`
+# because clang doesn't accept full paths in the -fuse-ld argument on some versions.
+# The linker will be found via PATH as long as `brew link --force llvm` has been run.
 [target.x86_64-apple-darwin]
 rustflags = ["-C", "link-arg=-fuse-ld=lld"]
 [target.aarch64-apple-darwin]
-rustflags = ["-C", "link-arg=-fuse-ld=/opt/homebrew/opt/llvm/bin/ld64.lld"]
+rustflags = ["-C", "link-arg=-fuse-ld=lld"]
