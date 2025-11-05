@@ -15,9 +15,16 @@ object Main extends IOApp.Simple:
   // case GET -> Root / "path" => ... is like .route("/path", web::get().to(handler))
   def greetRoutes: HttpRoutes[IO] =
     HttpRoutes.of[IO] {
-      case GET -> Root          => Ok("Hello World")
-      case GET -> Root / "name" => Ok("Hello World")
+      case GET -> Root / "greet"        => Ok("Hello World")
+      case GET -> Root / "greet" / name => Ok(s"Hello ${name}")
     }
+
+  def healthCheck: HttpRoutes[IO] =
+    HttpRoutes.of[IO] { case GET -> Root / "health_check" =>
+      Ok()
+    }
+
+  def routes = (greetRoutes <+> healthCheck)
 
   // Main entry point - this is where execution starts
   // RUST EQUIVALENT: async fn main() -> Result<(), std::io::Error>
@@ -26,7 +33,7 @@ object Main extends IOApp.Simple:
       .default[IO]
       .withHost(ipv4"127.0.0.1")
       .withPort(port"8001")
-      .withHttpApp(greetRoutes.orNotFound)
+      .withHttpApp(routes.orNotFound)
       // KEY INSIGHT: Both .build (Scala) and .run() (Rust) are LAZY
       // They describe the work but don't execute it yet!
       .build

@@ -2,7 +2,7 @@
 // :: is the path/namespace separator (for modules, types, static functions)
 // . is for method calls on instances
 // Example: String::from("text") vs my_string.len()
-use actix_web::{App, HttpRequest, HttpServer, Responder, web};
+use actix_web::{App, HttpRequest, HttpResponse, HttpServer, Responder, web};
 use const_format::formatcp; // For compile-time string formatting
 
 const HOST: &str = "127.0.0.1";
@@ -20,11 +20,15 @@ const TCP_SOCKET_ADDRESS: &str = formatcp!("{}:{}", HOST, PORT);
 // - TCP Socket: The actual OS resource created when .bind() is called
 // - TCP Connection: An accepted connection on that socket
 
-async fn greet(req: HttpRequest) -> impl Responder {
+async fn health_check() -> impl Responder {
     // impl Responder = "returns some concrete type that implements the Responder trait"
     // The caller doesn't know the exact type, just that it satisfies the Responder contract
     // Similar to Scala's abstract type members or existential types
     // Traits ≈ typeclasses (behavior contracts), but impl Trait is more like bounded existentials
+    HttpResponse::Ok()
+}
+
+async fn greet(req: HttpRequest) -> impl Responder {
     let name = req
         .match_info() // Extracts ROUTE PARAMETERS from URL path (e.g., "/greet/{name}")
         .get("name")
@@ -32,11 +36,10 @@ async fn greet(req: HttpRequest) -> impl Responder {
     format!("Hello {}", name) // Expression returning String (not unit like println!)
 }
 
-// Attribute macro: #[...] applies transformations to the item below <- CLAUDE ... what 'item below' ???
-// tokio::main transforms async fn main() into a proper program entry point
+// Attribute macro: #[...] applies transformations to the item below (func, etc...)
+// tokio::main is a procedural macro that transforms async fn main() into a proper program entry point
 // It sets up the async runtime (tokio) that can execute Futures
 // Like IORuntime.global in cats-effect - without it, async code can't run
-// CLAUDE: so... are you comparing tokio & cats-effect / zio ?????
 #[tokio::main]
 async fn main() -> Result<(), std::io::Error> {
     // Result is left-biased vs. Scala Either 'conventionally' right-biased
@@ -52,11 +55,12 @@ async fn main() -> Result<(), std::io::Error> {
             // web::get() creates a route guard that only matches HTTP GET requests
             // .to(greet) binds the greet handler function to this route
             // So: "on GET request to this path, call greet()"
+            .route("/health_check", web::get().to(health_check))
             .route(
-                "/",                  // PATH: &str
+                "/greet",             // PATH: &str
                 web::get().to(greet), // ROUTE: Route (an instance of the Route struct)
             )
-            .route("/name", web::get().to(greet))
+            .route("/greet/{name}", web::get().to(greet))
     })
     .bind(TCP_SOCKET_ADDRESS)? // ? operator: if bind() fails, return the error immediately
     // if success, unwrap the Ok value and continue
