@@ -12,6 +12,11 @@ lazy val root = (project in file("."))
     organization := "com.example",
     // Point to scala-src instead of default src/main/scala
     Compile / scalaSource := baseDirectory.value / "scala-src" / "main" / "scala",
+    // Tell sbt to watch scala-src for changes (needed for ~run to work)
+    watchSources += WatchSource(
+      baseDirectory.value / "scala-src",
+      "*.scala" || "*.sbt"
+    ),
     libraryDependencies ++= Seq(
       // Cats Effect - the async runtime (equivalent to tokio in Rust)
       "org.typelevel" %% "cats-effect" % catsEffectVersion,
