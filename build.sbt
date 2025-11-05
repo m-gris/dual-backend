@@ -6,17 +6,17 @@ lazy val catsEffectVersion = "3.3.14"
 lazy val http4sVersion     = "0.23.15"
 lazy val slf4jVersion      = "2.0.0"
 
+// The trick: use "." as the project root but customize source directories
+// This makes `sbt run` work directly without needing `root/run`
 lazy val root = (project in file("."))
   .settings(
     name := "zero2prod-scala",
     organization := "com.example",
-    // Point to scala-src instead of default src/main/scala
-    Compile / scalaSource := baseDirectory.value / "scala-src" / "main" / "scala",
-    // Tell sbt to watch scala-src for changes (needed for ~run to work)
-    watchSources += WatchSource(
-      baseDirectory.value / "scala-src",
-      "*.scala" || "*.sbt"
-    ),
+    // Point to scala-version subdirectory for sources
+    Compile / scalaSource := baseDirectory.value / "scala-version" / "src" / "main" / "scala",
+    Test / scalaSource := baseDirectory.value / "scala-version" / "src" / "test" / "scala",
+    // Target directory also goes into scala-version to keep it clean
+    target := baseDirectory.value / "scala-version" / "target",
     libraryDependencies ++= Seq(
       // Cats Effect - the async runtime (equivalent to tokio in Rust)
       "org.typelevel" %% "cats-effect" % catsEffectVersion,

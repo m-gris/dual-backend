@@ -1,11 +1,22 @@
 [package]
 name = "zero2prod"
 version = "0.1.0"
-edition = "2024"
+edition = "2025"
+author = [ "Marc GRIS <contact@marcgris.com>" ]
+
+
+[lib]
+# We could use any path here, but we are following the community convention
+# We could specify a library name using the `name` field.
+# If unspecified, cargo will default to `package.name`, which is what we want.
+path = "rust-version/src/lib.rs"
 
 [[bin]]
 name = "zero2prod"
-path = "rust-src/main.rs"
+path = "rust-version/src/main.rs"
+
+# Note: tests in rust-version/tests/ are automatically discovered by Cargo
+# No need to explicitly configure [[test]] for standard locations
 
 [dependencies]
 actix-web = "4"
