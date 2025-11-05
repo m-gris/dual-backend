@@ -1,1 +1,29 @@
+# Rust build artifacts
 /target
+Cargo.lock
+
+
+
+
+# Scala/sbt build artifacts
+target/
+project/target/
+project/project/
+.bsp/
+.metals/
+.bloop/
+*.class
+*.log
+.scala_dependencies
+
+# IDE and tooling
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Project-specific tool configuration
+.ignore
+Cargo.lock
+Cargo.lock
