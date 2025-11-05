@@ -27,3 +27,4 @@ project/project/
 .ignore
 Cargo.lock
 Cargo.lock
+project/metals.sbt
