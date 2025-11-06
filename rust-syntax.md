@@ -43,6 +43,7 @@ Organized chronologically as concepts appear.
 | `.expect("msg")` | Unwrap or panic with custom message | `.getOrElse(throw new Exception("msg"))` |
 | `Some(value)` | Present value in Option | `Some(value)` (same!) |
 | `None` | Absent value in Option | `None` (same!) |
+| `tokio::spawn(future)` | Spawns future as background task on tokio runtime | `io.start` in cats-effect or `zio.fork` in ZIO |
 
 ---
 
