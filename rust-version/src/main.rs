@@ -10,5 +10,6 @@ use zero2prod::run;
 // Like IORuntime.global in cats-effect - without it, async code can't run
 #[tokio::main]
 async fn main() -> Result<(), std::io::Error> {
-    run().await // Actually executes the Future (like unsafeRunSync in cats-effect)
+    run()? // unwrapp the result of run() , i.e Result<Server, Error>
+        .await // Actually executes the Server (Future) (like unsafeRunSync in cats-effect)
 }

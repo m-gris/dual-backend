@@ -6,7 +6,7 @@
 // :: is the path/namespace separator (for modules, types, static functions)
 // . is for method calls on instances
 // Example: String::from("text") vs my_string.len()
-use actix_web::{App, HttpRequest, HttpResponse, HttpServer, Responder, web};
+use actix_web::{App, HttpRequest, HttpResponse, HttpServer, Responder, dev::Server, web};
 use const_format::formatcp; // For compile-time string formatting
 
 const HOST: &str = "127.0.0.1";
@@ -40,12 +40,12 @@ async fn greet(req: HttpRequest) -> impl Responder {
     format!("Hello {}", name) // Expression returning String (not unit like println!)
 }
 
-// public since it is not a binary entrypoint (it can also be async without tokio...)
-pub async fn run() -> Result<(), std::io::Error> {
+// NOTE: pub fn: public since it is not a binary entrypoint
+pub fn run() -> Result<Server, std::io::Error> {
     // Result is left-biased vs. Scala Either 'conventionally' right-biased
 
     // HttpServer handles all transport level concerns
-    HttpServer::new(|| {
+    let server = HttpServer::new(|| {
         // Closure syntax: || { ... } for zero args, |a, b| { ... } for args
         // Can add types: |a: i32, b: String| { ... }
 
@@ -66,6 +66,9 @@ pub async fn run() -> Result<(), std::io::Error> {
     // if success, unwrap the Ok value and continue
     // Requires function to return Result<T, E>
     // Like early exit in Scala for-comprehension, but for errors
-    .run() // Returns a Future (NOTA: lazy in rust - pure description of work - doesn't execute yet!)
-    .await // Actually executes the Future (like unsafeRunSync in cats-effect)
+    .run(); // Returns a Future (NOTA: lazy in rust - pure description of work - doesn't execute yet!)
+
+    // We return the server without awaiting it,
+    // i.e, it can run in the background, concurrently with downstream futures and tasks
+    Ok(server) // NOTE: Server IS A FUTURE WRAPPED IN A RESULT !!!
 }
