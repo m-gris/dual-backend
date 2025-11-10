@@ -25,6 +25,39 @@ async fn greet(req: HttpRequest) -> impl Responder {
     format!("Hello {}", name) // Expression returning String (not unit like println!)
 }
 
+/*
+* actix-web provides several extractors out of the box to cater for the most common usecases:
+• Path, Query, Json, ... FormData
+Extractors can be accessed as an argument to a handler function.
+* NOTE: An extractor is a type that implements the FromRequest trait.
+*
+* All arguments in the signature of a route handler must implement the FromRequest trait:
+* actix-web will invoke from_request for each argument and, if the extraction succeeds for all of them,
+* it will then run the actual handler function.
+* If one of the extractions fails, the corresponding error is returned to the caller and the handler is never invoked (actix_web::Error can be converted to a HttpResponse).
+* This is extremely convenient: your handler does not have to deal with the raw incoming request and can instead work directly with strongly-typed information, significantly simplifying the code that you need to write to handle a request.
+* */
+
+#[derive(serde::Deserialize)]
+#[allow(dead_code)] // to prevent clippy from blocking our commit (not using the fields... yet)
+struct FormData {
+    email: String,
+    name: String,
+}
+
+async fn subscribe(
+    // "slap" it there as an argument to the handler
+    // and when a request comes in,
+    // actix-web will somehow do the heavy-lifting for you
+    _form: web::Form<FormData>,
+) -> HttpResponse {
+    // NOTE: We only return 200 OK here, but the endpoint automatically returns
+    // 400 Bad Request when form data is invalid/missing.
+    // This happens because web::Form<FormData> extraction fails before this handler runs,
+    // and actix-web converts the extraction error into a 400 response automatically.
+    HttpResponse::Ok().finish()
+}
+
 // NOTE: pub fn: public since it is not a binary entrypoint
 pub fn run(listener: TcpListener) -> Result<Server, std::io::Error> {
     // Result is left-biased vs. Scala Either 'conventionally' right-biased
@@ -46,6 +79,7 @@ pub fn run(listener: TcpListener) -> Result<Server, std::io::Error> {
                 web::get().to(greet), // ROUTE: Route (an instance of the Route struct)
             )
             .route("/greet/{name}", web::get().to(greet))
+            .route("/subscription", web::post().to(subscribe))
     })
     .listen(listener)? // ? operator: if bind() fails, return the error immediately
     // if success, unwrap the Ok value and continue

@@ -50,7 +50,12 @@ Organized chronologically as concepts appear.
 | `'static` | Lifetime annotation - data lives for entire program duration | N/A - GC handles lifetime |
 | `'a` (lifetime) | Lifetime parameter - ties borrowed data's lifetime to scope | N/A - GC manages this |
 | Deref coercion | `String` automatically converts to `&str` when `&str` expected | Implicit conversions |
-| `&format!(...)` | Borrow the temporary String created by format! macro | Creates temporary reference |
+| `&format!(...)` | Borrow a temporary String as &str. `format!` returns owned String, `&` borrows it as &str for the expression scope. Common when APIs expect &str but you need runtime formatting | `s"text $var"` produces String directly; in Scala everything is already a reference |
+| `vec![a, b, c]` | Macro to create Vec<T> (growable array) with initial elements | `List(a, b, c)` or `Vector(a, b, c)` |
+| `(a, b)` | Tuple literal - fixed-size heterogeneous collection | `(a, b)` (same!) |
+| `for (a, b) in vec` | Destructuring pattern in for loop (iterates over collection) | `for ((a, b) <- list)` |
+| `.as_u16()` | Convert type to u16 primitive (explicit conversion) | `.toInt`, `.toLong` etc |
+| `assert_eq!(a, b, "msg")` | Assert equality with custom failure message (3-arg form) | `assertEquals(a, b, "msg")` |
 
 ---
 
