@@ -61,6 +61,19 @@ jobs:
       - name: Linting
         run: cargo clippy -- -D warnings
 
+  # shellcheck job for bash scripts
+  shellcheck:
+    name: Shellcheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run ShellCheck
+        uses: ludeeus/action-shellcheck@2.0.0
+        with:
+          severity: warning  # Stricter than 'error' - catches common pitfalls and style issues
+          check_together: 'yes'  # Check all files together to catch cross-script issues
+          # Automatically finds all .sh files in the repo (default scandir behavior)
+
   # `coverage` container job
   coverage:
     name: Code coverage
