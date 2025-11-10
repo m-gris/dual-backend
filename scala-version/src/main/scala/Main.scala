@@ -5,8 +5,10 @@ import org.http4s.*
 import org.http4s.dsl.io.*
 import org.http4s.ember.server.EmberServerBuilder
 import org.http4s.server.Router
+import org.http4s.circe.CirceEntityDecoder.* // For automatic JSON/form decoding
 
 import com.comcast.ip4s.*
+import io.circe.Decoder
 
 // RUST EQUIVALENT: #[tokio::main]
 object Main extends IOApp.Simple:
@@ -16,7 +18,7 @@ object Main extends IOApp.Simple:
   def greetRoutes: HttpRoutes[IO] =
     HttpRoutes.of[IO] {
       case GET -> Root / "greet"        => Ok("Hello World")
-      case GET -> Root / "greet" / name => Ok(s"Hello ${name}")
+      case GET -> Root / "greet" / name => Ok(s"Hello $name")
     }
 
   def healthCheck: HttpRoutes[IO] =
@@ -24,7 +26,29 @@ object Main extends IOApp.Simple:
       Ok()
     }
 
-  def routes = (greetRoutes <+> healthCheck)
+  // RUST EQUIVALENT: struct FormData with #[derive(serde::Deserialize)]
+  // In Scala 3: case class + derives clause (like Rust's #[derive(...)])
+  case class FormData(email: String, name: String) derives Decoder
+
+  // RUST EQUIVALENT: async fn subscribe(form: web::Form<FormData>) -> HttpResponse
+  // NOTE: In http4s, EntityDecoder[IO, FormData] plays the role of Rust's FromRequest trait
+  // When decoding fails, http4s automatically returns 400 Bad Request (just like actix-web!)
+  def subscriptionRoutes: HttpRoutes[IO] =
+    HttpRoutes.of[IO] {
+      case req @ POST -> Root / "subscription" =>
+        // RUST: web::Form<FormData> extraction happens automatically as function parameter
+        // SCALA: We explicitly call .as[FormData] which uses the implicit Decoder
+        // BOTH: Decode failure → 400 Bad Request automatically (no explicit validation!)
+        req.as[FormData].flatMap { formData =>
+          // For now, just return 200 OK (not using formData yet, just like Rust version)
+          // The power is in the automatic validation via type-safe decoding
+          Ok()
+        }
+        // NOTE: We don't need .handleErrorWith for decode failures!
+        // http4s middleware automatically converts DecodeFailure → 400 Bad Request
+    }
+
+  def routes = (greetRoutes <+> healthCheck <+> subscriptionRoutes)
 
   // Main entry point - this is where execution starts
   // RUST EQUIVALENT: async fn main() -> Result<(), std::io::Error>

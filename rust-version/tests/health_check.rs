@@ -63,8 +63,18 @@ async fn subscribe_returns_400_when_data_is_missing() {
     // When FormData cannot be deserialized from the request body (missing required fields),
     // the web::Form<FormData> extraction fails BEFORE the handler runs.
     // actix-web then automatically converts this extraction failure into a 400 response.
-    // This is the power of the FromRequest trait: type-safe validation at the framework level,
-    // similar to how JSON parsing failures in Play Framework or http4s return 400 automatically.
+    //
+    // This is the power of the FromRequest trait: type-safe validation at the framework level.
+    //
+    // SCALA EQUIVALENT (http4s):
+    //   case req @ POST -> Root / "subscription" =>
+    //     req.as[FormData].flatMap { form => Ok() }
+    //
+    // If req.as[FormData] fails (missing fields, invalid format), http4s automatically
+    // returns 400 Bad Request via DecodeFailure → MalformedMessageBodyFailure handling.
+    // The Ok() block never runs, just like our Rust handler never runs on extraction failure.
+    //
+    // Both frameworks use the same pattern: typeclass-based decoding with automatic error handling.
     let test_cases = vec![
         ("name=le%20guin", "missing the email"),
         ("email=ursula_le_guin%40gmail.com", "missing the name"),
