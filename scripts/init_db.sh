@@ -61,5 +61,13 @@ run_sql "ALTER USER ${APP_USER} CREATEDB;"
 
 
 # using sqlx-cli to manage database migrations.
-DATABASE_URL=postgres://${APP_USER}:${APP_USER_PWD}@localhost:${DB_PORT}/${APP_DB_NAME} export DATABASE_URL
+# Export DATABASE_URL for sqlx commands
+export DATABASE_URL=postgres://${APP_USER}:${APP_USER_PWD}@localhost:${DB_PORT}/${APP_DB_NAME}
+
+# Create the database if it doesn't exist
 sqlx database create
+
+# Run all pending migrations
+# This ensures the database schema is always up-to-date when the script completes
+# Idempotent: safe to run multiple times (only applies unapplied migrations)
+sqlx migrate run
