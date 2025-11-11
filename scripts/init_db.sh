@@ -26,11 +26,13 @@ APP_USER="${APP_USER:=app}"
 APP_USER_PWD="${APP_USER_PWD:=secret}"
 APP_DB_NAME="${APP_DB_NAME:=newsletter}"
 
-# SQL
+# Execute SQL command as postgres superuser
+run_sql() {
+    docker exec -it "${CONTAINER_NAME}" psql -U "${SUPERUSER}" -c "$1"
+}
+
 # CREATE THE APPLICATION USER
-CREATE_USER_QUERY="CREATE USER ${APP_USER} WITH PASSWORD '${APP_USER_PWD}';"
-docker exec -it "${CONTAINER_NAME}" psql -U "${SUPERUSER}" -c "${CREATE_USER_QUERY}"
+run_sql "CREATE USER ${APP_USER} WITH PASSWORD '${APP_USER_PWD}';"
 
 # GRANT DB PRIVILEGES TO THE APP USER
-GRANT_QUERY="ALTER USER ${APP_USER} CREATEDB;"
-docker exec -it "${CONTAINER_NAME}" psql -U "${SUPERUSER}" -c "${GRANT_QUERY}"
+run_sql "ALTER USER ${APP_USER} CREATEDB;"
