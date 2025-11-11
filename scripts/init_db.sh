@@ -9,15 +9,28 @@ SUPERUSER_PWD="${SUPERUSER_PWD:=password}"
 CONTAINER_NAME='postgres-zero2prod'
 
 # Launch Postgres using docker
-
 docker run \
     --env POSTGRES_USER="${SUPERUSER}" \
-    --env POSTGRES_PWD="${SUPERUSER_PWD}" \
+    --env POSTGRES_PASSWORD="${SUPERUSER_PWD}" \
+    --health-cmd="pg_isready -U ${SUPERUSER} || exit 1" \
+    --health-interval=1s \
+    --health-timeout=5s \
+    --health-retries=5 \
     --publish "${DB_PORT}":5432 \
     --detach \
     --name "${CONTAINER_NAME}" \
-    postgres -N 1000 # max number of connections (for testing purposes)
+    postgres -N 1000
 
+is_ready() {
+    [ "$(docker inspect -f "{{.State.Health.Status}}" "${CONTAINER_NAME}")" = "healthy" ]
+}
+
+# Wait for Postgres to be ready to accept connections
+until is_ready; do
+    >&2 echo "Postgres still unavailable - sleeping"
+    sleep 1
+done
+>&2 echo "Postgres is up and running on port ${DB_PORT}!"
 
 # WARNING: By default, Postgres launches with a superuser named postgres, owner of a default database named postgres.
 # It is a good practice to avoid using the superuser for our applications, as it has too many privileges.
