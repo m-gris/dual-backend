@@ -42,10 +42,3 @@ serde = { version = "1", features = ["derive"]}
 [dev-dependencies]
 cargo-husky = { version = "1", default-features = false, features = ["user-hooks"] }
 reqwest = "0.12"
-
-# sqlx-cli: Database migration tool
-# Instead of global `cargo install sqlx-cli`, we declare it as a dev-dependency
-# for better reproducibility (version-locked, tracked in manifest).
-# Usage: cargo sqlx migrate run
-# NOTE: This is a CLI tool, not a library - we're treating it as project tooling
-sqlx-cli = { version = "~0.8", default-features = false, features = ["rustls", "postgres"] }
