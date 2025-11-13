@@ -1,8 +1,10 @@
 //! tests/health_check.rs
 
-use std::net::TcpListener;
+use std::net::TcpListener; // For compile-time string formatting
 
-use const_format::formatcp; // For compile-time string formatting
+use sqlx::{Connection, PgConnection};
+
+use zero2prod::configuration::{Settings, get_configuration};
 
 // `tokio::test` is the testing equivalent of `tokio::main`.
 // It also spares you from having to specify the `#[test]` attribute. //
@@ -34,10 +36,22 @@ async fn health_check_works() {
 }
 
 #[tokio::test]
+async fn can_connect_to_db() {
+    let config: Settings = get_configuration().expect("Failed to read config");
+    let db_conn = PgConnection::connect(&config.database.connection_string())
+        .await
+        .expect("Failed to connect to Postgres");
+}
+
+#[tokio::test]
 async fn subscribe_returns_200_ok_for_valid_form_data() {
     // ARRANGE
     let app_address = spawn_app();
     let client = reqwest::Client::new();
+    let config: Settings = get_configuration().expect("Failed to read config");
+    let db_conn = PgConnection::connect(&config.database.connection_string())
+        .await
+        .expect("Failed to connect to Postgres");
 
     // ACT
     let response = client
@@ -106,11 +120,10 @@ async fn subscribe_returns_400_when_data_is_missing() {
 // We are also running tests, so it is not worth it to propagate errors:
 // if we fail to perform the required setup we can just panic and crash.
 fn spawn_app() -> String {
-    const HOST: &str = "127.0.0.1";
-    const RANDOM_PORT: &str = "0"; // (i.e OS scan and takes whatever is available)
-    const TMP_ADDRESS: &str = formatcp!("{}:{}", HOST, RANDOM_PORT);
+    let config = get_configuration().expect("Failed to read config");
+    let testing_address = config.server.with_random_port();
     let listener: TcpListener =
-        TcpListener::bind(TMP_ADDRESS).expect("Failed to bind to the address");
+        TcpListener::bind(testing_address).expect("Failed to bind to the address");
     // We retrieve the port assigned to us by the OS
     let port = listener.local_addr().unwrap().port();
     let server = zero2prod::startup::run(listener).expect("Failed to bind address"); // Launch the server as a background task
