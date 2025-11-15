@@ -4,6 +4,8 @@
 
 use std::net::TcpListener;
 
+use sqlx::PgPool;
+
 use zero2prod::configuration::get_configuration;
 use zero2prod::startup::run;
 
@@ -14,8 +16,14 @@ use zero2prod::startup::run;
 #[tokio::main]
 async fn main() -> Result<(), std::io::Error> {
     let config = get_configuration().expect("Failed to read configuration.");
+
     let listener = TcpListener::bind(config.server.tcp_socket_address())
         .expect("Failed to bind to the address");
-    run(listener)? // unwrapp the result of run() , i.e Result<Server, Error>
+
+    let db_conn_pool = PgPool::connect(&config.database.connection_string())
+        .await
+        .expect("Failed to connect to Postgres");
+
+    run(listener, db_conn_pool)? // unwrapp the result of run() , i.e Result<Server, Error>
         .await // Actually executes the Server (Future) (like unsafeRunSync in cats-effect)
 }

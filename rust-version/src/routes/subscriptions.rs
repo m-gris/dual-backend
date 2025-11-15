@@ -3,6 +3,9 @@
 // . is for method calls on instances
 // Example: String::from("text") vs my_string.len()
 use actix_web::{HttpResponse, web};
+use chrono::Utc;
+use sqlx::PgPool;
+use uuid::Uuid;
 
 /*
 * EXTRACTORS - Type-safe request parsing (like http4s EntityDecoder or Play BodyParser)
@@ -59,6 +62,9 @@ pub async fn subscribe(
     //
     // SCALA: This is like req.as[FormData] using EntityDecoder + Decoder typeclasses
     _form: web::Form<FormData>,
+    // Retrieving a connection from the application state!
+    // by getting our hands on an Arc<PgPool> in the request handler, using the web::Data extractor:
+    _db_conn: web::Data<PgPool>,
 ) -> HttpResponse {
     // NOTE: We only return 200 OK here, but the endpoint automatically returns
     // 400 Bad Request when form data is invalid/missing.
@@ -67,5 +73,25 @@ pub async fn subscribe(
     //
     // SCALA: Same behavior - if req.as[FormData] fails to decode, http4s middleware
     //        automatically returns 400 Bad Request via DecodeFailure handling
-    HttpResponse::Ok().finish()
+
+    // `Result` of sqlx::query! has two variants: `Ok` and `Err`.
+    match sqlx::query!(
+        r#"
+        INSERT INTO subscriptions(id, email, name, subscribed_at)
+        VALUES ($1, $2, $3, $4)
+        "#,
+        Uuid::new_v4(),
+        _form.email,
+        _form.name,
+        Utc::now()
+    )
+    .execute(_db_conn.get_ref()) // an immutable reference to the `PgPool` wrapped by `web::Data`.
+    .await
+    {
+        Ok(_) => HttpResponse::Ok().finish(),
+        Err(e) => {
+            println!("Failed to execute query:{}", e);
+            HttpResponse::InternalServerError().finish()
+        }
+    }
 }
