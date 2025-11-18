@@ -4,8 +4,12 @@
 
 use std::net::TcpListener;
 
-use env_logger::Env;
 use sqlx::PgPool;
+
+use tracing::subscriber::set_global_default;
+use tracing_bunyan_formatter::{BunyanFormattingLayer, JsonStorageLayer};
+use tracing_log::LogTracer;
+use tracing_subscriber::{EnvFilter, Registry, layer::SubscriberExt};
 
 use zero2prod::configuration::get_configuration;
 use zero2prod::startup::run;
@@ -20,8 +24,26 @@ async fn main() -> Result<(), std::io::Error> {
     std::env::var("RUST_LOG")
         .expect("RUST_LOG environment variable must be set (e.g., RUST_LOG=info)");
 
-    env_logger::Builder::from_env(Env::default().filter("RUST_LOG"))
-        .init();
+    // Redirects all `log`'s events to our subscriber
+    LogTracer::init().expect("Failed to set logger");
+
+    let env_filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("infos"));
+
+    let formatting_layer = BunyanFormattingLayer::new(
+        "zero2prod".into(),
+        // output the formatted spans to stdout
+        std::io::stdout,
+    );
+
+    let subscriber = Registry::default()
+        // `.with` is provided by `SubscriberExt`
+        // an extension trait for `Subscriber` exposed by `tracing_subscriber`
+        .with(env_filter)
+        .with(JsonStorageLayer)
+        .with(formatting_layer);
+
+    // specify which subscriber should process the span
+    set_global_default(subscriber).expect("Failed to set subscriber");
 
     let config = get_configuration().expect("Failed to read configuration.");
 

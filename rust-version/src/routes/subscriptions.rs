@@ -5,8 +5,8 @@
 use actix_web::{HttpResponse, web};
 use chrono::Utc;
 use sqlx::PgPool;
+use tracing::Instrument;
 use uuid::Uuid;
-
 /*
 * EXTRACTORS - Type-safe request parsing (like http4s EntityDecoder or Play BodyParser)
 *
@@ -74,7 +74,31 @@ pub async fn subscribe(
     // SCALA: Same behavior - if req.as[FormData] fails to decode, http4s middleware
     //        automatically returns 400 Bad Request via DecodeFailure handling
 
-    log::info!("Saving new subscriber details in the database: {} {}", _form.email, _form.name);
+    // unique id to CORRELATE all logs related to the same request.
+    let request_id = Uuid::new_v4();
+
+    // creating a SPAN, to capture the whole http request
+    let request_span = tracing::info_span!(
+    "Adding a new subscriber",
+        // associate structured information to our spans
+        // as a collection of key-value pairs.
+        // the % symbol tells tracing to use their Display implementation for logging purposes
+        // IMPLICITLY
+        %request_id,
+        // EXPLICITY
+        subscriber_email = %_form.email,
+        subscriber_name = %_form.name
+    );
+
+    let _request_span_guard = request_span.enter();
+
+    // NOTE: thanks to TRACING’s log feature flag,
+    // every time an event or a span are created using tracing’s macros
+    // a corresponding log event is emitted, allowing log’s loggers to pick up on it
+
+    // WARNING: we do NOT call `.enter` on the query_span !
+    // This is handled by `.instrument` (invoked downstream)
+    let query_span = tracing::info_span!("Saving new subscriber details in the database");
 
     // `Result` of sqlx::query! has two variants: `Ok` and `Err`.
     match sqlx::query!(
@@ -88,10 +112,11 @@ pub async fn subscribe(
         Utc::now()
     )
     .execute(_db_conn.get_ref()) // an immutable reference to the `PgPool` wrapped by `web::Data`.
+    .instrument(query_span)
     .await
     {
         Ok(_) => {
-            log::info!("New subscriber details saved");
+            tracing::info!("request_id {request_id} - New subscriber details saved");
             HttpResponse::Ok().finish()
         }
         Err(e) => {
@@ -99,7 +124,7 @@ pub async fn subscribe(
             using {:?}, the std::fmt::Debug format,
             to capture the query error and extract as much information as possible
             */
-            log::error!("Failed to execute query:{:?}", e);
+            tracing::error!("request_id {request_id} - Failed to execute query:{:?}", e);
             HttpResponse::InternalServerError().finish()
         }
     }

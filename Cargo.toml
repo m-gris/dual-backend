@@ -42,7 +42,17 @@ config = "0.14"
 uuid = { version = "1", features = ["v4"] }
 chrono = { version = "0.4.22", default-features = false, features = ["clock"] }
 log = "0.4"
-env_logger = "0.9"
+# env_logger = "0.9"
+tracing = { version = "0.1", features = ["log"] }
+tracing-log = "0.2"
+tracing-bunyan-formatter = "0.3"
+tracing-subscriber = { version = "0.3", features = ["registry", "env-filter"] }
+tracing-actix-web = "0.7"
+# thiserror = "1"
+# sha3 = "0.9"
+# argon2 = { version = "0.5", features = ["std"] }
+# hex = "0.4"
+# actix-session = { version = "0.10", features = ["redis-session-rustls"] }
 
 # Using table-like toml syntax to avoid a super-long line!
 [dependencies.sqlx]
@@ -59,3 +69,8 @@ features = [
 [dev-dependencies]
 cargo-husky = { version = "1", default-features = false, features = ["user-hooks"] }
 reqwest = "0.12"
+fake = "2.9"
+quickcheck = "1.0.3"
+quickcheck_macros = "1"
+rand = "0.8"
+wiremock = "0.6"
