@@ -8,7 +8,7 @@ use sqlx::PgPool;
 use tracing::Instrument;
 use uuid::Uuid;
 /*
-* EXTRACTORS - Type-safe request parsing (like http4s EntityDecoder or Play BodyParser)
+* EXTRACTORS - Type-safe request parsing (like http4s EntityDecoder)
 *
 * actix-web provides several extractors out of the box to cater for the most common usecases:
 * • Path, Query, Json, Form, etc.
@@ -35,7 +35,6 @@ use uuid::Uuid;
 // Both Rust #[derive(...)] and Scala 3 derives use compile-time code generation
 // to auto-implement typeclass instances (Deserialize in Rust, Decoder in Scala)
 #[derive(serde::Deserialize)]
-#[allow(dead_code)] // to prevent clippy from blocking our commit (not using the fields... yet)
 pub struct FormData {
     email: String,
     name: String,
@@ -94,7 +93,7 @@ pub async fn subscribe(
 
     // NOTE: thanks to TRACING’s log feature flag,
     // every time an event or a span are created using tracing’s macros
-    // a corresponding log event is emitted, allowing log’s loggers to pick up on it
+    // a corresponding log event is emitted, allowing loggers to pick up on it
 
     // WARNING: we do NOT call `.enter` on the query_span !
     // This is handled by `.instrument` (invoked downstream)
