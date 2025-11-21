@@ -1,11 +1,33 @@
 //! tests/health_check.rs
 
 use std::net::TcpListener; // For compile-time string formatting
+use std::sync::LazyLock;
+use uuid::Uuid;
 
 use sqlx::{Connection, Executor, PgConnection, PgPool};
 
-use uuid::Uuid;
 use zero2prod::configuration::{DBUser, DatabaseSettings, Settings, get_configuration};
+use zero2prod::telemetry::{get_subscriber, init_subscriber};
+
+// Ensure that the `tracing` stack is only initialised once using `LazyLock`
+// LazyLock provides thread-safe lazy initialization:
+// - static: global variable with 'static lifetime (lives entire program duration)
+// - LazyLock: the closure runs EXACTLY ONCE on first access, even with concurrent threads
+// - Thread-safe: uses atomic operations, subsequent accesses skip initialization
+// Why needed: init_subscriber() panics if called twice, but each test runs in its own thread
+// Scala equivalent: lazy val (but LazyLock is lock-free after init, lazy val uses synchronized)
+//
+// - Memory location: Stored in the binary's data segment (not on stack or heap)
+// - Shared across threads: All threads see the same instance
+//
+// Contrast with:
+// - Local variables: live on the stack, destroyed when function returns
+// - Heap allocations: live until explicitly freed
+// - const: compile-time constant, gets inlined (no memory address)
+static TRACING: LazyLock<()> = LazyLock::new(|| {
+    let subscriber = get_subscriber("test".into(), "debug".into());
+    init_subscriber(subscriber);
+});
 
 pub struct TestApp {
     root_address: String,
@@ -127,6 +149,10 @@ async fn subscribe_returns_400_when_data_is_missing() {
 // We are also running tests, so it is not worth it to propagate errors:
 // if we fail to perform the required setup we can just panic and crash.
 async fn spawn_app() -> TestApp {
+    // The first time `initialize` is invoked the code in `TRACING` is executed.
+    // All other invocations will instead skip execution.
+    LazyLock::force(&TRACING);
+
     // WARNING: In order to achieve 'test isolation' & determinism
     // Before each test run, we want to:
     //  - create a new db with a random, unique name

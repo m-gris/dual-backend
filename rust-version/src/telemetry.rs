@@ -13,11 +13,6 @@ use tracing_subscriber::{EnvFilter, Registry, layer::SubscriberExt};
 /// We need to explicitly call out that the returned subscriber is
 /// `Send` and `Sync` to make it possible to pass it to `init_subscriber` later on.
 pub fn get_subscriber(name: String, env_filter: String) -> impl Subscriber + Send + Sync {
-    // NOTE: Should be moved elsewhere ? in configuration ?
-    // 12-factor: RUST_LOG is required config, fail fast if missing
-    std::env::var("RUST_LOG")
-        .expect("RUST_LOG environment variable must be set (e.g., RUST_LOG=info)");
-
     let env_filter =
         EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new(env_filter));
 
