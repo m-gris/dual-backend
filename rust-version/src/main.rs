@@ -22,6 +22,7 @@ async fn main() -> Result<(), std::io::Error> {
         // Scala equivalent: implicit conversions, but explicit call in Rust
         "zero2prod".into(),
         "info".into(),
+        std::io::stdout, // i.e the "sink" to which logs should be written
     );
 
     init_subscriber(subscriber);

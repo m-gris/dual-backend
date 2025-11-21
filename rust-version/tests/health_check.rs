@@ -25,8 +25,33 @@ use zero2prod::telemetry::{get_subscriber, init_subscriber};
 // - Heap allocations: live until explicitly freed
 // - const: compile-time constant, gets inlined (no memory address)
 static TRACING: LazyLock<()> = LazyLock::new(|| {
-    let subscriber = get_subscriber("test".into(), "debug".into());
-    init_subscriber(subscriber);
+    // Choose the sink based on TEST_LOG environment variable:
+    // - If TEST_LOG is set: output logs to stdout
+    // - If TEST_LOG is not set: discard all logs (sink to avoid test noise)
+    //
+    // Usage: TEST_LOG=true cargo test health_check_works | bunyan
+    //
+    // NOTE: This looks duplicated, but Rust's `impl Trait` returns different opaque types
+    // for each call to get_subscriber() with different sink types (stdout vs sink).
+    // We cannot do:
+    //   let subscriber = if TEST_LOG { get_subscriber(..., stdout) } else { get_subscriber(..., sink) }
+    // because the if-else branches would have incompatible types (different opaque impl Trait).
+    //
+    // We also cannot do:
+    //   let sink = if TEST_LOG { stdout() } else { sink() }
+    // because stdout() returns Stdout, sink() returns Sink - different concrete types.
+    //
+    // Therefore we must duplicate the get_subscriber + init_subscriber calls in each branch.
+    let subscriber_name = "test".into();
+    let subscriber_env = "debug".into();
+
+    if std::env::var("TEST_LOG").is_ok() {
+        let subscriber = get_subscriber(subscriber_name, subscriber_env, std::io::stdout);
+        init_subscriber(subscriber);
+    } else {
+        let subscriber = get_subscriber(subscriber_name, subscriber_env, std::io::sink);
+        init_subscriber(subscriber);
+    };
 });
 
 pub struct TestApp {
