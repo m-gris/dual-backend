@@ -4,6 +4,7 @@ use std::net::TcpListener; // For compile-time string formatting
 use std::sync::LazyLock;
 use uuid::Uuid;
 
+use secrecy::{ExposeSecret, Secret};
 use sqlx::{Connection, Executor, PgConnection, PgPool};
 
 use zero2prod::configuration::{DBUser, DatabaseSettings, Settings, get_configuration};
@@ -208,16 +209,17 @@ pub async fn configure_database(db_conf: &DatabaseSettings) -> PgPool {
         name: "postgres".to_string(),
         user: DBUser {
             name: "postgres".to_string(),
-            password: "password".to_string(),
+            password: Secret::new("password".to_string()),
         },
         // CLAUDE: to comment ... i do understand we're 'copying' everything else form the
         // db_conf.clone()... but what's the proper term for what is done / this syntax ?
         ..db_conf.clone()
     };
 
-    let mut db_conn = PgConnection::connect(&maintenant_db_conf.connection_string())
-        .await
-        .expect("Failed to connect to maintenance postgres instance");
+    let mut db_conn =
+        PgConnection::connect(&maintenant_db_conf.connection_string().expose_secret())
+            .await
+            .expect("Failed to connect to maintenance postgres instance");
 
     db_conn
         // CLAUDE: please explain this r#""# syntax
@@ -225,8 +227,7 @@ pub async fn configure_database(db_conf: &DatabaseSettings) -> PgPool {
         .await
         .expect("Failed to create test db");
 
-    let db_conn_pool = PgPool::connect(&db_conf.clone().connection_string())
-        .await
+    let db_conn_pool = PgPool::connect_lazy(&db_conf.clone().connection_string().expose_secret())
         .expect("Failed to create pool for test db");
 
     sqlx::migrate!("./migrations")

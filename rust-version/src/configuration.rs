@@ -1,5 +1,5 @@
 //! src/configuration.rs
-
+use secrecy::{ExposeSecret, Secret};
 /*
 * To manage configuration with config we must
 * represent our application settings as a Rust type
@@ -35,7 +35,7 @@ impl ServerSettings {
 #[derive(serde::Deserialize, Clone)]
 pub struct DBUser {
     pub name: String,
-    pub password: String,
+    pub password: Secret<String>,
 }
 
 // DatabaseSettings must also dervice Deserialize
@@ -51,11 +51,15 @@ pub struct DatabaseSettings {
 
 impl DatabaseSettings {
     // motivation: PgConnection::connect wants a single connection string as input
-    pub fn connection_string(self) -> String {
-        format!(
+    pub fn connection_string(self) -> Secret<String> {
+        Secret::new(format!(
             "postgres://{}:{}@{}:{}/{}",
-            self.user.name, self.user.password, self.host, self.port, self.name
-        )
+            self.user.name,
+            self.user.password.expose_secret(),
+            self.host,
+            self.port,
+            self.name
+        ))
     }
 }
 
