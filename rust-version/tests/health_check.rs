@@ -187,8 +187,8 @@ async fn spawn_app() -> TestApp {
     let db_conn_pool = configure_database(&config.database).await;
 
     let testing_address = config.server.with_random_port();
-    let listener: TcpListener =
-        TcpListener::bind(testing_address).expect("Failed to bind to the address");
+    let listener: TcpListener = TcpListener::bind(&testing_address)
+        .expect(format!("Failed to bind to the address {:?}", testing_address).as_str());
     // We retrieve the port assigned to us by the OS
     let port = listener.local_addr().unwrap().port();
     let server =

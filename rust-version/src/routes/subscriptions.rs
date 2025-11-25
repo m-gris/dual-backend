@@ -5,7 +5,6 @@
 use actix_web::{HttpResponse, web};
 use chrono::Utc;
 use sqlx::PgPool;
-use tracing::Instrument;
 use uuid::Uuid;
 /*
 * EXTRACTORS - Type-safe request parsing (like http4s EntityDecoder)
@@ -40,17 +39,20 @@ pub struct FormData {
     name: String,
 }
 
-// SCALA EQUIVALENT:
-//   case req @ POST -> Root / "subscription" =>
-//     req.as[FormData].flatMap { formData => Ok() }
-//
-// The key difference:
-//   RUST: Extraction happens as parameter (web::Form<FormData>)
-//         Type-level composition: FromRequest trait + serde Deserialize
-//   SCALA: Extraction happens explicitly via .as[FormData]
-//          Type-level composition: EntityDecoder[IO, FormData] + circe Decoder
-//
-// Both achieve the same: decode failure → 400 Bad Request, success → handler runs
+// NOTE: thanks to TRACING’s log feature flag,
+// every time an event or a span are created using tracing’s macros
+// a corresponding log event is emitted, allowing loggers to pick up on it
+#[tracing::instrument(
+    name="Adding a new subscriber", // default: func name, i.e subscribe
+    skip(_form, _db_conn),
+    fields(
+        // CLAUDE: please remind me about this % syntax...
+        // unique id to CORRELATE all logs related to the same request.
+        request_id=%Uuid::new_v4(),
+        subscriber_email=%_form.email,
+        subscriber_name=%_form.name
+    )
+)]
 pub async fn subscribe(
     // web::Form<FormData> implements FromRequest trait
     // When actix-web sees this parameter:
@@ -64,6 +66,11 @@ pub async fn subscribe(
     // Retrieving a connection from the application state!
     // by getting our hands on an Arc<PgPool> in the request handler, using the web::Data extractor:
     _db_conn: web::Data<PgPool>,
+    // The key difference:
+    //   RUST: Extraction happens as parameter (web::Form<FormData>)
+    //         Type-level composition: FromRequest trait + serde Deserialize
+    //   SCALA: Extraction happens explicitly via .as[FormData]
+    //          Type-level composition: EntityDecoder[IO, FormData] + circe Decoder
 ) -> HttpResponse {
     // NOTE: We only return 200 OK here, but the endpoint automatically returns
     // 400 Bad Request when form data is invalid/missing.
@@ -72,35 +79,18 @@ pub async fn subscribe(
     //
     // SCALA: Same behavior - if req.as[FormData] fails to decode, http4s middleware
     //        automatically returns 400 Bad Request via DecodeFailure handling
+    match insert_subscriber(&_form, &_db_conn).await {
+        Ok(_) => HttpResponse::Ok().finish(),
+        Err(_) => HttpResponse::InternalServerError().finish(), // CLAUDE: what are those .finish() ???
+    }
+}
 
-    // unique id to CORRELATE all logs related to the same request.
-    let request_id = Uuid::new_v4();
-
-    // creating a SPAN, to capture the whole http request
-    let request_span = tracing::info_span!(
-    "Adding a new subscriber",
-        // associate structured information to our spans
-        // as a collection of key-value pairs.
-        // the % symbol tells tracing to use their Display implementation for logging purposes
-        // IMPLICITLY
-        %request_id,
-        // EXPLICITY
-        subscriber_email = %_form.email,
-        subscriber_name = %_form.name
-    );
-
-    let _request_span_guard = request_span.enter();
-
-    // NOTE: thanks to TRACING’s log feature flag,
-    // every time an event or a span are created using tracing’s macros
-    // a corresponding log event is emitted, allowing loggers to pick up on it
-
-    // WARNING: we do NOT call `.enter` on the query_span !
-    // This is handled by `.instrument` (invoked downstream)
-    let query_span = tracing::info_span!("Saving new subscriber details in the database");
-
-    // `Result` of sqlx::query! has two variants: `Ok` and `Err`.
-    match sqlx::query!(
+#[tracing::instrument(
+    name = "Saving new subscriber details in the database",
+    skip(_form, _db_conn)
+)]
+pub async fn insert_subscriber(_form: &FormData, _db_conn: &PgPool) -> Result<(), sqlx::Error> {
+    sqlx::query!(
         r#"
         INSERT INTO subscriptions(id, email, name, subscribed_at)
         VALUES ($1, $2, $3, $4)
@@ -110,21 +100,13 @@ pub async fn subscribe(
         _form.name,
         Utc::now()
     )
-    .execute(_db_conn.get_ref()) // an immutable reference to the `PgPool` wrapped by `web::Data`.
-    .instrument(query_span)
+    // .execute(_db_conn)
+    // CLAUDE: why don't we get a ref in this case ????
+    .execute(_db_conn) // an immutable reference to the `PgPool` wrapped by `web::Data`.
     .await
-    {
-        Ok(_) => {
-            tracing::info!("request_id {request_id} - New subscriber details saved");
-            HttpResponse::Ok().finish()
-        }
-        Err(e) => {
-            /*
-            using {:?}, the std::fmt::Debug format,
-            to capture the query error and extract as much information as possible
-            */
-            tracing::error!("request_id {request_id} - Failed to execute query:{:?}", e);
-            HttpResponse::InternalServerError().finish()
-        }
-    }
+    .map_err(|e| {
+        tracing::error!("Failed to execute query: {:?}", e);
+        e
+    })?;
+    Ok(())
 }

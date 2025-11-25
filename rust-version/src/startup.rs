@@ -1,15 +1,13 @@
-use actix_web::middleware::Logger;
 use actix_web::{App, HttpServer, dev::Server, web};
 use sqlx::PgPool;
 use std::net::TcpListener;
+use tracing_actix_web::TracingLogger;
 
 use crate::routes::health_check;
 use crate::routes::subscribe;
 
 // NOTE: pub fn: public since it is not a binary entrypoint
 pub fn run(listener: TcpListener, db_conn_pool: PgPool) -> Result<Server, std::io::Error> {
-    // Result is left-biased vs. Scala Either 'conventionally' right-biased
-
     /*
      * web::Data wraps our connection in an Atomic Reference Counted pointer, an Arc:
      * each instance of the application, instead of getting a raw copy of a PgPool,
@@ -32,7 +30,7 @@ pub fn run(listener: TcpListener, db_conn_pool: PgPool) -> Result<Server, std::i
             // App is the component whose job is to take an incoming request as input and spit out a response.
             App::new()
                 // Adding Middlewares with the `wrap` method on `App`
-                .wrap(Logger::default()) // emits a log record for every incoming request.
+                .wrap(TracingLogger::default()) // emits a log record for every incoming request.
                 .route(
                     "/health_check",
                     // web::get() creates a route guard that only matches HTTP GET requests

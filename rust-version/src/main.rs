@@ -29,8 +29,9 @@ async fn main() -> Result<(), std::io::Error> {
 
     let config = get_configuration().expect("Failed to read configuration.");
 
-    let listener = TcpListener::bind(config.server.tcp_socket_address())
-        .expect("Failed to bind to the address");
+    let address = config.server.tcp_socket_address();
+    let error_msg = format!("Failed to bind to the address {:?}", address);
+    let listener = TcpListener::bind(&address).expect(&error_msg);
 
     let db_conn_pool = PgPool::connect(&config.database.connection_string())
         .await
