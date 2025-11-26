@@ -29,3 +29,7 @@ project/plugins/project/
 ### Scala ###
 *.class
 *.log
+
+tests/
+scripts/
+migrations/
