@@ -1,5 +1,7 @@
 //! src/configuration.rs
+// use config::Environment;
 use secrecy::{ExposeSecret, Secret};
+use std::net::Ipv4Addr;
 /*
 * To manage configuration with config we must
 * represent our application settings as a Rust type
@@ -13,7 +15,7 @@ pub struct Settings {
 
 #[derive(serde::Deserialize, Clone)]
 pub struct ServerSettings {
-    pub host: String,
+    pub host: Ipv4Addr,
     pub port: u16,
 }
 
@@ -64,11 +66,44 @@ impl DatabaseSettings {
 }
 
 pub fn get_configuration() -> Result<Settings, config::ConfigError> {
+    let base_path = std::env::current_dir().expect("Failed to determine current dir.");
+    let config_dir = base_path.join("configuration");
+    let env: Environment = std::env::var("APP_ENVIRONMENT")
+        .unwrap_or_else(|_| "local".into())
+        .try_into()
+        .expect("Failed to parse APP_ENVIRONMENT");
+    let env_config_file = format!("{}.yaml", env.as_str());
     let settings = config::Config::builder()
-        .add_source(config::File::new(
-            "configuration.yaml",
-            config::FileFormat::Yaml,
-        ))
+        .add_source(config::File::from(config_dir.join("base.yaml")))
+        .add_source(config::File::from(config_dir.join(env_config_file)))
         .build()?;
     settings.try_deserialize::<Settings>()
+}
+
+pub enum Environment {
+    Local,
+    Production,
+}
+
+impl Environment {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Environment::Local => "local",
+            Environment::Production => "production",
+        }
+    }
+}
+
+impl TryFrom<String> for Environment {
+    type Error = String;
+    fn try_from(s: String) -> Result<Self, Self::Error> {
+        match s.to_lowercase().as_str() {
+            "local" => Ok(Self::Local),
+            "production" => Ok(Self::Production),
+            other => Err(format!(
+                "{} is not a supported env.\nUse either `local` or `production`",
+                other
+            )),
+        }
+    }
 }

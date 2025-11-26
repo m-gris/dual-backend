@@ -1,0 +1,2 @@
+server:
+  host: 0.0.0.0 # accepts connection coming from any network interface

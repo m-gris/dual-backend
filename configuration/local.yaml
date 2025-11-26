@@ -1,0 +1,2 @@
+server:
+  host: 127.0.0.1 # i.e only accepts connection coming from the same machine
